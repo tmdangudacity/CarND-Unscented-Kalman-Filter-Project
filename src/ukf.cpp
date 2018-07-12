@@ -1,74 +1,77 @@
 #include "ukf.h"
+#include "measurement_package.h"
+
 #include "Eigen/Dense"
 #include <iostream>
 
-using namespace std;
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
-using std::vector;
+//State dimension
+const int UKF::N_X   = 5;
 
-/**
- * Initializes Unscented Kalman filter
- * This is scaffolding, do not modify
- */
-UKF::UKF() {
-  // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+//Augmented state dimension
+const int UKF::N_AUG = 7;
 
-  // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = true;
+//Sigma point spreading parameter
+const double UKF::LAMBDA = (3.0 - UKF::N_X);
 
-  // initial state vector
-  x_ = VectorXd(5);
+//Process noise values
 
-  // initial covariance matrix
-  P_ = MatrixXd(5, 5);
+//Process noise standard deviation longitudinal acceleration in m/s^2
+const double UKF::STD_A      = 30.0; //@TODO: need to tune and use a different smaller value!
 
-  // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+//Process noise standard deviation yaw acceleration in rad/s^2
+const double UKF::STD_YAW_DD = 30.0; //@TODO: need to tune and use a different smaller value!
 
-  // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
-  
-  //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
-  // Laser measurement noise standard deviation position1 in m
-  std_laspx_ = 0.15;
+//Measurement noise values
 
-  // Laser measurement noise standard deviation position2 in m
-  std_laspy_ = 0.15;
+//Laser measurement noise standard deviation position1 in m
+const double UKF::STD_LASER_PX = 0.15;
 
-  // Radar measurement noise standard deviation radius in m
-  std_radr_ = 0.3;
+//Laser measurement noise standard deviation position2 in m
+const double UKF::STD_LASER_PY = 0.15;
 
-  // Radar measurement noise standard deviation angle in rad
-  std_radphi_ = 0.03;
+//Radar measurement noise standard deviation radius in m
+const double UKF::STD_RAD_R    = 0.3;
 
-  // Radar measurement noise standard deviation radius change in m/s
-  std_radrd_ = 0.3;
-  //DO NOT MODIFY measurement noise values above these are provided by the sensor manufacturer.
-  
-  /**
-  TODO:
+//Radar measurement noise standard deviation angle in rad
+const double UKF::STD_RAD_PHI  = 0.03;
 
-  Complete the initialization. See ukf.h for other member properties.
+//Radar measurement noise standard deviation radius change in m/s
+const double UKF::STD_RAD_R_D  = 0.3;
 
-  Hint: one or more values initialized above might be wildly off...
-  */
+
+UKF::UKF()
+:is_initialized_(false),
+ time_us_(0),
+ use_laser_(true),
+ use_radar_(true)
+{
+    x_ = VectorXd(5);
+
+    x_ << 0.0, 0.0, 0.0, 0.0, 0.0;
+
+    P_ = MatrixXd(5, 5);
+
+    //@TODO: Initialise weights_, Xsig_pred_ with correct dimensions
 }
 
-UKF::~UKF() {}
+UKF::~UKF()
+{
+}
 
 /**
  * @param {MeasurementPackage} meas_package The latest measurement data of
  * either radar or laser.
  */
-void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
+void UKF::ProcessMeasurement(const MeasurementPackage& meas_package)
+{
   /**
   TODO:
 
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+
+  std::cout << "Testing Calling ProcessMeasurement!" << std::endl;
 }
 
 /**
@@ -76,7 +79,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  * @param {double} delta_t the change in time (in seconds) between the last
  * measurement and this one.
  */
-void UKF::Prediction(double delta_t) {
+void UKF::Prediction(double delta_t)
+{
   /**
   TODO:
 
@@ -89,7 +93,8 @@ void UKF::Prediction(double delta_t) {
  * Updates the state and the state covariance matrix using a laser measurement.
  * @param {MeasurementPackage} meas_package
  */
-void UKF::UpdateLidar(MeasurementPackage meas_package) {
+void UKF::UpdateLidar(const MeasurementPackage& meas_package)
+{
   /**
   TODO:
 
@@ -104,9 +109,11 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * Updates the state and the state covariance matrix using a radar measurement.
  * @param {MeasurementPackage} meas_package
  */
-void UKF::UpdateRadar(MeasurementPackage meas_package) {
+void UKF::UpdateRadar(const MeasurementPackage& meas_package)
+{
   /**
   TODO:
+
 
   Complete this function! Use radar data to update the belief about the object's
   position. Modify the state vector, x_, and covariance, P_.
@@ -114,3 +121,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   You'll also need to calculate the radar NIS.
   */
 }
+
+const VectorXd& UKF::GetStates() const
+{
+    return x_;
+}
+
