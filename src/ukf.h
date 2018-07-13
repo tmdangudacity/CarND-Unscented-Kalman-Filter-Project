@@ -1,6 +1,8 @@
 #ifndef UKF_H
 #define UKF_H
 
+#include <string>
+
 #include "Eigen/Dense"
 
 using Eigen::MatrixXd;
@@ -12,10 +14,18 @@ class UKF
 {
     public:
 
+        typedef enum
+        {
+            LASER_DATA_ONLY = 0,
+            RADAR_DATA_ONLY,
+            LASER_AND_RADAR_DATA
+        }
+        DataOption;
+
         /**
-         * Constructor
-         */
-        UKF();
+        * Constructor.
+        */
+        UKF(DataOption in_data = LASER_AND_RADAR_DATA);
 
         /**
          * Destructor
@@ -26,45 +36,49 @@ class UKF
          * ProcessMeasurement
          * @param meas_package The latest measurement data of either radar or laser
          */
-         void ProcessMeasurement(const MeasurementPackage& meas_package);
+         bool ProcessMeasurement(const MeasurementPackage& meas_package);
 
          /**
           * Get States
           */
          const VectorXd& GetStates() const;
 
+         static std::string ToString(DataOption data_option);
+
     private:
+
+        /**
+         * Initialisation of the state with measurement data
+         */
+        bool Initialise(const MeasurementPackage& meas_package);
 
         /**
          * Prediction Predicts sigma points, the state, and the state covariance
          * matrix
          * @param delta_t Time between k and k+1 in s
          */
-        void Prediction(double delta_t);
+        bool Prediction(double delta_t);
 
         /**
          * Updates the state and the state covariance matrix using a laser measurement
          * @param meas_package The measurement at k+1
          */
-         void UpdateLidar(const MeasurementPackage& meas_package);
+        bool UpdateLidar(const MeasurementPackage& meas_package);
 
         /**
          * Updates the state and the state covariance matrix using a radar measurement
          * @param meas_package The measurement at k+1
          */
-        void UpdateRadar(const MeasurementPackage& meas_package);
+        bool UpdateRadar(const MeasurementPackage& meas_package);
+
+        // what stream of data is used
+        DataOption data_option_;
 
         ///* initially set to false, set to true in first call of ProcessMeasurement
         bool is_initialized_;
 
         ///* time when the state is true, in us
         long long time_us_;
-
-        ///* if this is false, laser measurements will be ignored (except for init)
-        bool use_laser_;
-
-        ///* if this is false, radar measurements will be ignored (except for init)
-        bool use_radar_;
 
         ///* state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
         VectorXd x_;

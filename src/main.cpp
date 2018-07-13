@@ -33,6 +33,8 @@ int main()
 
   // Create a Kalman Filter instance
   UKF ukf;
+  //UKF ukf(UKF::LASER_DATA_ONLY);
+  //UKF ukf(UKF::RADAR_DATA_ONLY);
 
   // used to compute the RMSE later
   Tools tools;
