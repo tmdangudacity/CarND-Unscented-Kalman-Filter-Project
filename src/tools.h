@@ -28,12 +28,6 @@ class Tools
                                const vector<VectorXd>& ground_truth,
                                bool* ok = NULL);
 
-        /**
-        * A helper method to calculate Jacobians.
-        */
-        MatrixXd CalculateJacobian(const VectorXd& x_state,
-                                   bool* ok = NULL);
-
         //Return the value of Pi
         static double Pi();
 

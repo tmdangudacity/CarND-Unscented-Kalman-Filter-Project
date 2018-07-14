@@ -11,8 +11,11 @@ const int UKF::N_X   = 5;
 //Augmented state dimension
 const int UKF::N_AUG = 7;
 
+// 2 * N_AUG + 1
+const int UKF::N_AUG_2_PLUS_1 = (2 * UKF::N_AUG + 1);
+
 //Sigma point spreading parameter
-const double UKF::LAMBDA = (3.0 - UKF::N_X);
+const double UKF::LAMBDA = (3.0 - UKF::N_AUG);
 
 //Process noise values
 
@@ -54,8 +57,25 @@ UKF::UKF(DataOption in_data)
           0.0, 0.0, 0.0, 1.0, 0.0,
           0.0, 0.0, 0.0, 0.0, 1.0;
 
-    //@TODO: Initialise weights_, Xsig_pred_ with correct dimensions
-    //Adding matrices R_laser and R_radar, Q?
+    weights_ = VectorXd(N_AUG_2_PLUS_1);
+
+    double weight_multiplier = LAMBDA;
+    double weight_denom = 1.0 / (LAMBDA + N_AUG);
+
+    for (int i = 0; i < N_AUG_2_PLUS_1 ; ++i)
+    {
+        if(i > 0)
+        {
+            weight_multiplier = 0.5;
+        }
+
+        weights_(i) = weight_multiplier * weight_denom;
+    }
+
+    Xsig_pred_ = MatrixXd(N_X, N_AUG_2_PLUS_1);
+    Xsig_pred_.fill(0.0);
+
+    //@TODO: Adding matrices R_laser and R_radar, Q?
 }
 
 UKF::~UKF()
@@ -84,13 +104,13 @@ bool UKF::ProcessMeasurement(const MeasurementPackage& meas_package)
 
         if(ret)
         {
-            double dt = 1.0e-6 * (meas_package.timestamp_ - time_us_);
+            double delta_t = 1.0e-6 * (meas_package.timestamp_ - time_us_);
 
             if((data_option_ != LASER_DATA_ONLY) && (meas_package.sensor_type_ == MeasurementPackage::RADAR))
             {
                 //Data option is using Radar data or both
 
-                ret = Prediction(dt);
+                ret = Prediction(delta_t);
                 if(ret)
                 {
                     time_us_ = meas_package.timestamp_;
@@ -107,7 +127,7 @@ bool UKF::ProcessMeasurement(const MeasurementPackage& meas_package)
             {
                 //Data option is using Laser data or both
 
-                ret = Prediction(dt);
+                ret = Prediction(delta_t);
                 if(ret)
                 {
                     time_us_ = meas_package.timestamp_;
@@ -143,26 +163,20 @@ bool UKF::ProcessMeasurement(const MeasurementPackage& meas_package)
  */
 bool UKF::Initialise(const MeasurementPackage& meas_package)
 {
-    //Initialize the state ekf_.x_ with the first measurement.
-    //Create the covariance matrix.
-
-    //@TODO: initialise state vector x_(5) instead of (4)
-    // first measurement
-
     is_initialized_ = false;
-    VectorXd x_init = VectorXd(4);
 
     if(meas_package.sensor_type_ == MeasurementPackage::RADAR)
     {
         //Convert radar from polar to cartesian coordinates and initialize state.
-        float ro     = meas_package.raw_measurements_(0);
-        float theta  = Tools::UnwrapAngle(meas_package.raw_measurements_(1));
-        float ro_dot = meas_package.raw_measurements_(2);
+        double ro    = meas_package.raw_measurements_(0);
+        double theta = Tools::UnwrapAngle(meas_package.raw_measurements_(1));
 
-        x_init(0) = ro * cos(theta);
-        x_init(1) = ro * sin(theta);
-        x_init(2) = ro_dot * cos(theta);
-        x_init(3) = ro_dot * sin(theta);
+        x_(0) = ro * cos(theta);
+        x_(1) = ro * sin(theta);
+        x_(2) = 0.0;
+        x_(3) = 0.0;
+        x_(4) = 0.0;
+
         std::cout << "Fusion data option: " << ToString(data_option_) << std::endl;
 
         is_initialized_ = true;
@@ -173,10 +187,11 @@ bool UKF::Initialise(const MeasurementPackage& meas_package)
     else if(meas_package.sensor_type_ == MeasurementPackage::LASER)
     {
         //Initialize state.
-        x_init(0) = meas_package.raw_measurements_(0);
-        x_init(1) = meas_package.raw_measurements_(1);
-        x_init(2) = 1.0;
-        x_init(3) = 1.0;
+        x_(0) = meas_package.raw_measurements_(0);
+        x_(1) = meas_package.raw_measurements_(1);
+        x_(2) = 0.0;
+        x_(3) = 0.0;
+        x_(4) = 0.0;
 
         is_initialized_ = true;
         time_us_ = meas_package.timestamp_;
@@ -190,7 +205,7 @@ bool UKF::Initialise(const MeasurementPackage& meas_package)
 
     if(is_initialized_)
     {
-        std::cout << x_init << std::endl;
+        std::cout << x_ << std::endl;
         std::cout << "Fusion data option: " << ToString(data_option_) << std::endl;
     }
 
@@ -206,13 +221,13 @@ bool UKF::Prediction(double delta_t)
 {
     bool ret = true;
 
-    /**
-    TODO:
-    Complete this function! Estimate the object's location. Modify the state
-    vector, x_. Predict sigma points, the state, and the state covariance matrix.
-    */
-
     std::cout << "Test Prediction, dT: " << delta_t << std::endl;
+
+    MatrixXd x_augmented_sigma;
+
+    GenerateAugmentedSigmaPoints(x_augmented_sigma);
+    PredictSigmaPoints(x_augmented_sigma, delta_t);
+    PredictMeanAndCovariance();
 
     return ret;
 }
@@ -286,4 +301,122 @@ std::string UKF::ToString(DataOption data_option)
 
     return ret;
 }
+
+void UKF::GenerateAugmentedSigmaPoints(MatrixXd& Xsig_aug) const
+{
+    //sigma point matrix
+    Xsig_aug = MatrixXd(N_AUG, N_AUG_2_PLUS_1);
+
+    //augmented mean vector
+    VectorXd x_aug = VectorXd(N_AUG);
+
+    x_aug.head(N_X) = x_;
+    x_aug(N_AUG - 2) = 0.0;
+    x_aug(N_AUG - 1) = 0.0;
+
+    //augmented state covariance
+    MatrixXd P_aug = MatrixXd(N_AUG, N_AUG);
+
+    P_aug.fill(0.0);
+    P_aug.topLeftCorner(N_X, N_X) = P_;
+    P_aug((N_AUG - 2), (N_AUG - 2)) = STD_A * STD_A;
+    P_aug((N_AUG - 1), (N_AUG - 1)) = STD_YAW_DD * STD_YAW_DD;
+
+    //create square root matrix
+    MatrixXd L = P_aug.llt().matrixL();
+    L *= sqrt(LAMBDA + N_AUG);
+
+    //create augmented sigma points
+    Xsig_aug.col(0)  = x_aug;
+
+    for (int i = 0; i < N_AUG; ++i)
+    {
+        Xsig_aug.col(i + 1)         = x_aug + L.col(i);
+        Xsig_aug.col(i + 1 + N_AUG) = x_aug - L.col(i);
+    }
+
+    //print result
+    std::cout << "Xsig_aug: " << std::endl << Xsig_aug << std::endl;
+}
+
+void UKF::PredictSigmaPoints(const MatrixXd& Xsig_aug, double delta_t)
+{
+    //predict sigma points
+    for (int i = 0; i < N_AUG_2_PLUS_1; ++i)
+    {
+        //extract values for better readability
+        double p_x      = Xsig_aug(0,i);
+        double p_y      = Xsig_aug(1,i);
+        double v        = Xsig_aug(2,i);
+        double yaw      = Xsig_aug(3,i);
+        double yawd     = Xsig_aug(4,i);
+        double nu_a     = Xsig_aug(5,i);
+        double nu_yawdd = Xsig_aug(6,i);
+
+        //predicted state values
+        double px_p, py_p;
+
+        //avoid division by zero
+        if( fabs(yawd) > 0.001)
+        {
+            px_p = p_x + v / yawd * ( sin (yaw + yawd * delta_t) - sin(yaw));
+            py_p = p_y + v / yawd * ( cos(yaw) - cos(yaw + yawd * delta_t) );
+        }
+        else
+        {
+            //If dyaw is very small
+            px_p = p_x + v * delta_t * cos(yaw);
+            py_p = p_y + v * delta_t * sin(yaw);
+        }
+
+        double v_p = v;
+        double yaw_p = yaw + yawd * delta_t;
+        double yawd_p = yawd;
+
+        //add noise from analytical model of Q wity noise_a and noise_yawdd
+        px_p = px_p + 0.5 * nu_a * delta_t * delta_t * cos(yaw);
+        py_p = py_p + 0.5 * nu_a * delta_t * delta_t * sin(yaw);
+        v_p  = v_p + nu_a * delta_t;
+
+        yaw_p = yaw_p + 0.5 * nu_yawdd * delta_t * delta_t;
+        yawd_p = yawd_p + nu_yawdd * delta_t;
+
+        //write predicted sigma point into right column
+        Xsig_pred_(0,i) = px_p;
+        Xsig_pred_(1,i) = py_p;
+        Xsig_pred_(2,i) = v_p;
+        Xsig_pred_(3,i) = yaw_p;
+        Xsig_pred_(4,i) = yawd_p;
+    }
+
+    //print result
+    std::cout << "Xsig_pred: " << std::endl << Xsig_pred_ << std::endl;
+}
+
+void UKF::PredictMeanAndCovariance()
+{
+    //predicted state mean
+    for(int i = 0; i < N_AUG_2_PLUS_1; ++i)
+    {  //iterate over predicted sigma points
+        x_ = x_ + weights_(i) * Xsig_pred_.col(i);
+    }
+
+    //predicted state covariance matrix
+    for(int i = 0; i < N_AUG_2_PLUS_1; ++i)
+    { //iterate over predicted sigma points
+
+        // state difference
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+
+        double x_diff_3 = x_diff(3);
+        x_diff(3) = Tools::UnwrapAngle(x_diff_3);
+
+        P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
+    }
+
+    //print result
+    std::cout << "Predicted X:" << std::endl << x_ << std::endl;
+    std::cout << "Predicted P:" << std::endl << P_ << std::endl;
+}
+
 

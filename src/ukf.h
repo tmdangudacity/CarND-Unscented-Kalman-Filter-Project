@@ -47,30 +47,6 @@ class UKF
 
     private:
 
-        /**
-         * Initialisation of the state with measurement data
-         */
-        bool Initialise(const MeasurementPackage& meas_package);
-
-        /**
-         * Prediction Predicts sigma points, the state, and the state covariance
-         * matrix
-         * @param delta_t Time between k and k+1 in s
-         */
-        bool Prediction(double delta_t);
-
-        /**
-         * Updates the state and the state covariance matrix using a laser measurement
-         * @param meas_package The measurement at k+1
-         */
-        bool UpdateLidar(const MeasurementPackage& meas_package);
-
-        /**
-         * Updates the state and the state covariance matrix using a radar measurement
-         * @param meas_package The measurement at k+1
-         */
-        bool UpdateRadar(const MeasurementPackage& meas_package);
-
         // what stream of data is used
         DataOption data_option_;
 
@@ -98,6 +74,9 @@ class UKF
         ///* Augmented state dimension
         static const int N_AUG;
 
+        /// 2 * N_AUG + 1
+        static const int N_AUG_2_PLUS_1;
+
         ///* Sigma point spreading parameter
         static const double LAMBDA;
 
@@ -121,6 +100,45 @@ class UKF
 
         ///* Radar measurement noise standard deviation radius change in m/s
         static const double STD_RAD_R_D;
+
+        /**
+         * Initialisation of the state with measurement data
+         */
+        bool Initialise(const MeasurementPackage& meas_package);
+
+        /**
+         * Prediction Predicts sigma points, the state, and the state covariance
+         * matrix
+         * @param delta_t Time between k and k+1 in s
+         */
+        bool Prediction(double delta_t);
+
+        /**
+         * Updates the state and the state covariance matrix using a laser measurement
+         * @param meas_package The measurement at k+1
+         */
+        bool UpdateLidar(const MeasurementPackage& meas_package);
+
+        /**
+         * Updates the state and the state covariance matrix using a radar measurement
+         * @param meas_package The measurement at k+1
+         */
+        bool UpdateRadar(const MeasurementPackage& meas_package);
+
+        /**
+         * Generate augmented sigma points
+         * */
+        void GenerateAugmentedSigmaPoints(MatrixXd& Xsig_aug) const;
+
+        /**
+         * Sigma point prediction
+         * */
+        void PredictSigmaPoints(const MatrixXd& Xsig_aug, double delta_t);
+
+        /**
+         * Predict mean and covariance
+         * */
+        void PredictMeanAndCovariance();
 };
 
 #endif /* UKF_H */
