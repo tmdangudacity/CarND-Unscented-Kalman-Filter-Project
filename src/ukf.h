@@ -68,8 +68,20 @@ class UKF
         ///* predicted sigma points matrix
         MatrixXd Xsig_pred_;
 
+        ///* Laser measurement noise covariance matrix
+        MatrixXd R_LASER;
+
+        //* Radar measurement noise covariance matrix
+        MatrixXd R_RADAR;
+
         ///* State dimension
         static const int N_X;
+
+        ///* Laser measurement dimension
+        static const int N_Z_LASER;
+
+        ///* Radar measurement dimension
+        static const int N_Z_RADAR;
 
         ///* Augmented state dimension
         static const int N_AUG;
@@ -106,24 +118,7 @@ class UKF
          */
         bool Initialise(const MeasurementPackage& meas_package);
 
-        /**
-         * Prediction Predicts sigma points, the state, and the state covariance
-         * matrix
-         * @param delta_t Time between k and k+1 in s
-         */
-        bool Prediction(double delta_t);
-
-        /**
-         * Updates the state and the state covariance matrix using a laser measurement
-         * @param meas_package The measurement at k+1
-         */
-        bool UpdateLidar(const MeasurementPackage& meas_package);
-
-        /**
-         * Updates the state and the state covariance matrix using a radar measurement
-         * @param meas_package The measurement at k+1
-         */
-        bool UpdateRadar(const MeasurementPackage& meas_package);
+        /** Prediction step **/
 
         /**
          * Generate augmented sigma points
@@ -139,6 +134,43 @@ class UKF
          * Predict mean and covariance
          * */
         void PredictMeanAndCovariance();
+
+        /**
+         * Prediction Predicts sigma points, the state, and the state covariance
+         * matrix
+         * @param delta_t Time between k and k+1 in s
+         */
+        void Prediction(double delta_t);
+
+        /** Update with Laser measurment **/
+
+        /**
+         * Updates the state and the state covariance matrix using a laser measurement
+         * @param meas_package The measurement at k+1
+         */
+        void UpdateLidar(const MeasurementPackage& meas_package);
+
+
+        /** Update with Radar measurement **/
+
+        /**
+         *  Predict Radar measurement
+         **/
+        void PredictRadarMeasurement(MatrixXd& Zsig, VectorXd& z_pred, MatrixXd& S_inn);
+
+        /**
+         * Update Radar state
+         **/
+        void UpdateRadarState(const MatrixXd& Zsig,
+                              const VectorXd& z_pred,
+                              const MatrixXd& S_inn,
+                              const MeasurementPackage& meas_package);
+
+        /**
+         * Updates the state and the state covariance matrix using a radar measurement
+         * @param meas_package The measurement at k+1
+         */
+        void UpdateRadar(const MeasurementPackage& meas_package);
 };
 
 #endif /* UKF_H */
