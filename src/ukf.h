@@ -29,7 +29,7 @@ class UKF
 
         /**
          * Destructor
-         */
+         **/
         virtual ~UKF();
 
         /**
@@ -74,6 +74,16 @@ class UKF
         //* Radar measurement noise covariance matrix
         MatrixXd R_RADAR;
 
+        ///* Laser NIS results:
+        unsigned int laser_nis_total;
+        unsigned int laser_nis_95;
+        unsigned int laser_nis_05;
+
+        ///* Radar NIS results:
+        unsigned int radar_nis_total;
+        unsigned int radar_nis_95;
+        unsigned int radar_nis_05;
+
         ///* State dimension
         static const int N_X;
 
@@ -112,6 +122,18 @@ class UKF
 
         ///* Radar measurement noise standard deviation radius change in m/s
         static const double STD_RAD_R_D;
+
+        ///* Laser Chi-Square 95
+        static const double LASER_CHI_SQUARE_95;
+
+        ///* Laser Chi-Square 05
+        static const double LASER_CHI_SQUARE_05;
+
+        ///* Radar Chi-Square 95
+        static const double RADAR_CHI_SQUARE_95;
+
+        ///* Radar Chi-Square 05
+        static const double RADAR_CHI_SQUARE_05;
 
         /**
          * Initialisation of the state with measurement data

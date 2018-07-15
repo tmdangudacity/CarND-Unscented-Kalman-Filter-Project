@@ -26,10 +26,10 @@ const double UKF::LAMBDA = (3.0 - UKF::N_AUG);
 //Process noise values
 
 //Process noise standard deviation longitudinal acceleration in m/s^2
-const double UKF::STD_A      = 0.5;
+const double UKF::STD_A      = 0.3;
 
 //Process noise standard deviation yaw acceleration in rad/s^2
-const double UKF::STD_YAW_DD = 0.5;
+const double UKF::STD_YAW_DD = 0.3;
 
 //Measurement noise values
 
@@ -48,10 +48,29 @@ const double UKF::STD_RAD_PHI  = 0.03;
 //Radar measurement noise standard deviation radius change in m/s
 const double UKF::STD_RAD_R_D  = 0.3;
 
+// Laser Chi-Square 95
+const double UKF::LASER_CHI_SQUARE_95 = 0.103;
+
+// Laser Chi-Square 05
+const double UKF::LASER_CHI_SQUARE_05 = 5.991;
+
+// Radar Chi-Square 95
+const double UKF::RADAR_CHI_SQUARE_95 = 0.352;
+
+// Radar Chi-Square 05
+const double UKF::RADAR_CHI_SQUARE_05 = 7.815;
+
+
 UKF::UKF(DataOption in_data)
 :data_option_(in_data),
  is_initialized_(false),
- time_us_(0)
+ time_us_(0),
+ laser_nis_total(0),
+ laser_nis_95(0),
+ laser_nis_05(0),
+ radar_nis_total(0),
+ radar_nis_95(0),
+ radar_nis_05(0)
 {
     x_ = VectorXd(5);
     x_ << 0.0, 0.0, 0.0, 0.0, 0.0;
@@ -426,8 +445,10 @@ void UKF::UpdateLaserState(const MatrixXd& Zsig,
         Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
     }
 
+    MatrixXd S_inn_inverse = S_inn.inverse();
+
     //Kalman gain K;
-    MatrixXd K = Tc * S_inn.inverse();
+    MatrixXd K = Tc * S_inn_inverse; // S_inn.inverse();
 
     VectorXd z_laser = VectorXd(N_Z_LASER);
     z_laser(0) = meas_package.raw_measurements_(0);
@@ -443,17 +464,27 @@ void UKF::UpdateLaserState(const MatrixXd& Zsig,
     x_ = x_ + K * z_diff;
     P_ = P_ - K * S_inn * K.transpose();
 
+    //Laser NIS:
+    double laser_nis_value = (z_diff.transpose()) * S_inn_inverse * z_diff;
+
+    ++laser_nis_total;
+    if(laser_nis_value > LASER_CHI_SQUARE_95) ++laser_nis_95;
+    if(laser_nis_value > LASER_CHI_SQUARE_05) ++laser_nis_05;
+
+    double laser_nis_95_percent = 100.0 * ((double)laser_nis_95) / ((double)laser_nis_total);
+    double laser_nis_05_percent = 100.0 * ((double)laser_nis_05) / ((double)laser_nis_total);
+
     //print result
     std::cout << "- Updated (Laser) state x: "      << std::endl << x_ << std::endl;
     std::cout << "- Updated (Laser) covariance P: " << std::endl << P_ << std::endl;
+    std::cout << "- Laser NIS value: "              << laser_nis_value
+              << ", Chi-Square-95 percent: "        << laser_nis_95_percent
+              << ", Chi-Square-05 percent: "        << laser_nis_05_percent
+              << std::endl;
 }
 
 void UKF::UpdateLaser(const MeasurementPackage& meas_package)
 {
-    /**
-    TODO: Calculate the Laser NIS.
-    */
-
     MatrixXd Zsig   = MatrixXd(N_Z_LASER, N_AUG_2_PLUS_1);
     VectorXd z_pred = VectorXd(N_Z_LASER);
     MatrixXd S_inn  = MatrixXd(N_Z_LASER, N_Z_LASER);
@@ -537,8 +568,10 @@ void UKF::UpdateRadarState(const MatrixXd& Zsig,
         Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
     }
 
+    MatrixXd S_inn_inverse = S_inn.inverse();
+
     //Kalman gain K;
-    MatrixXd K = Tc * S_inn.inverse();
+    MatrixXd K = Tc * S_inn_inverse; //S_inn.inverse();
 
     //Convert radar from polar to cartesian coordinates and initialize state.
     VectorXd z_radar = VectorXd(N_Z_RADAR);
@@ -557,17 +590,27 @@ void UKF::UpdateRadarState(const MatrixXd& Zsig,
     x_ = x_ + K * z_diff;
     P_ = P_ - K * S_inn * K.transpose();
 
+    //Radar NIS:
+    double radar_nis_value = (z_diff.transpose()) * S_inn_inverse * z_diff;
+
+    ++radar_nis_total;
+    if(radar_nis_value > RADAR_CHI_SQUARE_95) ++radar_nis_95;
+    if(radar_nis_value > RADAR_CHI_SQUARE_05) ++radar_nis_05;
+
+    double radar_nis_95_percent = 100.0 * ((double)radar_nis_95) / ((double)radar_nis_total);
+    double radar_nis_05_percent = 100.0 * ((double)radar_nis_05) / ((double)radar_nis_total);
+
     //print result
     std::cout << "- Updated (Radar) state x: "      << std::endl << x_ << std::endl;
     std::cout << "- Updated (Radar) covariance P: " << std::endl << P_ << std::endl;
+    std::cout << "- Radar NIS value: "              << radar_nis_value
+              << ", Chi-Square-95 percent: "        << radar_nis_95_percent
+              << ", Chi-Square-05 percent: "        << radar_nis_05_percent
+              << std::endl;
 }
 
 void UKF::UpdateRadar(const MeasurementPackage& meas_package)
 {
-    /**
-    TODO: Calculate the radar NIS.
-    */
-
     MatrixXd Zsig   = MatrixXd(N_Z_RADAR, N_AUG_2_PLUS_1);
     VectorXd z_pred = VectorXd(N_Z_RADAR);
     MatrixXd S_inn  = MatrixXd(N_Z_RADAR, N_Z_RADAR);
@@ -575,6 +618,4 @@ void UKF::UpdateRadar(const MeasurementPackage& meas_package)
     PredictRadarMeasurement(Zsig, z_pred, S_inn);
     UpdateRadarState(Zsig, z_pred, S_inn, meas_package);
 }
-
-
 
