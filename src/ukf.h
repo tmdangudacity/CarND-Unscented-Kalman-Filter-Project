@@ -68,7 +68,7 @@ class UKF
         ///* predicted sigma points matrix
         MatrixXd Xsig_pred_;
 
-        ///* Laser measurement noise covariance matrix
+        ///* LASER measurement noise covariance matrix
         MatrixXd R_LASER;
 
         //* Radar measurement noise covariance matrix
@@ -77,7 +77,7 @@ class UKF
         ///* State dimension
         static const int N_X;
 
-        ///* Laser measurement dimension
+        ///* LASER measurement dimension
         static const int N_Z_LASER;
 
         ///* Radar measurement dimension
@@ -118,7 +118,7 @@ class UKF
          */
         bool Initialise(const MeasurementPackage& meas_package);
 
-        /** Prediction step **/
+        //Prediction
 
         /**
          * Generate augmented sigma points
@@ -142,16 +142,28 @@ class UKF
          */
         void Prediction(double delta_t);
 
-        /** Update with Laser measurment **/
+
+        //Update with Laser measurement
 
         /**
-         * Updates the state and the state covariance matrix using a laser measurement
+         *  Predict Laser measurement
+         **/
+        void PredictLaserMeasurement(MatrixXd& Zsig, VectorXd& z_pred, MatrixXd& S_inn);
+
+        /**
+         * Update Laser state
+         **/
+        void UpdateLaserState(const MatrixXd& Zsig,
+                              const VectorXd& z_pred,
+                              const MatrixXd& S_inn,
+                              const MeasurementPackage& meas_package);
+        /**
+         * Updates the state and the state covariance matrix using a Laser measurement
          * @param meas_package The measurement at k+1
          */
-        void UpdateLidar(const MeasurementPackage& meas_package);
+        void UpdateLaser(const MeasurementPackage& meas_package);
 
-
-        /** Update with Radar measurement **/
+        //Update with Radar measurement
 
         /**
          *  Predict Radar measurement
