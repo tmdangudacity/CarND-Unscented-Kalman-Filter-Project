@@ -2,7 +2,6 @@
 #define UKF_H
 
 #include <string>
-
 #include "Eigen/Dense"
 
 using Eigen::MatrixXd;
@@ -47,7 +46,7 @@ class UKF
 
     private:
 
-        // what stream of data is used
+        // stream of sensor data used
         DataOption data_option_;
 
         ///* initially set to false, set to true in first call of ProcessMeasurement
@@ -68,7 +67,7 @@ class UKF
         ///* predicted sigma points matrix
         MatrixXd Xsig_pred_;
 
-        ///* LASER measurement noise covariance matrix
+        ///* Laser measurement noise covariance matrix
         MatrixXd R_LASER;
 
         //* Radar measurement noise covariance matrix
@@ -87,7 +86,7 @@ class UKF
         ///* State dimension
         static const int N_X;
 
-        ///* LASER measurement dimension
+        ///* Laser measurement dimension
         static const int N_Z_LASER;
 
         ///* Radar measurement dimension
@@ -158,8 +157,7 @@ class UKF
         void PredictMeanAndCovariance();
 
         /**
-         * Prediction Predicts sigma points, the state, and the state covariance
-         * matrix
+         * Predicts sigma points, the state, and the state covariance matrix
          * @param delta_t Time between k and k+1 in s
          */
         void Prediction(double delta_t);
